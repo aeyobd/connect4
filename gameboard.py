@@ -193,9 +193,10 @@ class gameboard:
 
 
 
-class gameboard2:
+class gameboard:
     def __init__(self, score=None, depth=None):
-        self._boards = [np.int64(0), np.int64(0)]
+        self._board1 = np.int64(0)
+        self._board2 = np.int64(0)
         self._player_turn = 1
         self._column_heighths = [0]*N_COLS
 
@@ -207,10 +208,6 @@ class gameboard2:
             if self[5][j] == 0:
                 l.append(j)
         return l
-
-    @property
-    def board(self):
-        return self._board
 
     @property
     def score(self):
@@ -238,16 +235,18 @@ class gameboard2:
             raise ValueError("Not a valid move")
 
         i = self._column_heighths[j]
-        print(self.player_turn - 1)
-        self._boards[self.player_turn - 1] += 1 << i + 7*j
+        if self.player_turn == 1:
+            self._board1 += 1 << (i + 7*j)
+        else:
+            self._board2 += 1 << (i + 7*j)
         self._column_heighths[j] += 1
 
         # if player 1 now player 2's turn, vice versa
         self._player_turn = 3 - self.player_turn
 
     def __getitem__(self, i):
-        row1 = self._boards[0] >> i
-        row2 = self._boards[1] >> i
+        row1 = self._board1 >> i
+        row2 = self._board2 >> i
 
         l = [0] * N_COLS
         for j in range(N_COLS):
@@ -272,7 +271,10 @@ class gameboard2:
         if player is None:
             player = 3 - self.player_turn 
         
-        x = self._boards[player - 1]
+        if player == 1:
+            x = self._board1
+        else:
+            x = self._board2
 
         # downward diagonal
         y = x & (x >> 6)

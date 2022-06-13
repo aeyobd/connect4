@@ -8,7 +8,7 @@ class node:
         self.parent = parent
 
         # redundant, will fix
-        self.depth = parent.depth - 1
+        self.depth = parent.depth + 1
         self.board.depth = self.depth
             
         self.path = copy.copy(parent.path)
@@ -22,59 +22,78 @@ class node:
 
         self.children = []
         self.n_children = len(self.board.valid_moves)
+        self.terminal = False
+        self.has_children = False
 
+    def reevaluate(self, depth):
+        if not self.terminal:
+            if not self.has_children:
+                self.add_children()
+                self.evaluate()
+            if self.depth < depth:
+                for child in self.children:
+                    child.reevaluate(depth)
+                self.rescore()
+
+    def add_children(self):
+        for m in self.board.valid_moves:
+            child = node(self, m)
+            self.children.append(child)
+        self.has_children = True
+
+    def rescore(self):
+        if self.terminal:
+            return
+
+        self.terminal = True
+        for child in self.children:
+            self.terminal &= child.terminal
+            if child.score == 0:
+                if self.antinode:
+                    self.score = 0
+                    self.terminal = True
+                    break
+            elif child.score == 1:
+                if not self.antinode:
+                    self.score = 1
+                    self.terminal = True
+                    break
+
+        if self.antinode:
+            self.score = min([child.score for child in self.children])
+            if self.score == 0 or self.score == 1:
+                self.terminal = True
+            if not self.terminal:
+                self.score = self.score - 0.5 + self.pos_score
+
+        else:
+            self.score = max([child.score for child in self.children])
+            if self.score == 0 or self.score == 1:
+                self.terminal = True
+            if not self.terminal:
+                self.score = self.score + 0.5 - self.pos_score
 
     def evaluate(self):
         # if the game is won, the node ends
         # searched_board = self.computed_boards.find_board(self.board)
-        self.score = None
         if self.board.is_won:
             self.score = self.antinode
             self.computed_boards.find_count += 1
+            self.terminal = True
         # elif searched_board is not None:
         #     self.score = searched_board.score
         #     self.computed_boards.find_count += 1
         elif self.n_children == 0:
             self.score = 0.5 # game is tied
             self.computed_boards.find_count += 1
-        elif self.depth == 0:
-            # the default score if evaluation is halted.
-            # TODO: use positional arguments to determine a better estimate
-            self.computed_boards.end_count += 1
-            if self.antinode:
-                self.score = self.calculate_positional_score()
-            else:
-                self.score = 1 - self.calculate_positional_score()
-            # self.score = 0.5
+            self.terminal = True
         else:
-            for m in self.board.valid_moves:
-                child = node(self, m)
-                child.evaluate()
-
-                self.children.append(child)
-
-                # trimming the tree
-                if child.score == 0:
-                    if self.antinode:
-                        self.score = 0
-                        break
-
-                if child.score == 1:
-                    if not self.antinode:
-                        self.score = 1
-                        break
-
             if self.antinode:
-                self.score = min([child.score for child in self.children])
-                if self.score != 0 and self.score != 1:
-                    self.score = self.score - 0.5 + self.calculate_positional_score()
-
+                self.pos_score = self.calculate_positional_score()
             else:
-                self.score = max([child.score for child in self.children])
-                if self.score != 0 and self.score != 1:
-                    self.score = self.score + 0.5 - self.calculate_positional_score()
+                self.pos_score = 1 - self.calculate_positional_score()
+            self.score = self.pos_score
 
-            
         self.board.score = self.score
         self.board.depth = self.depth
 
@@ -95,7 +114,7 @@ class node:
             if i < 0 or i >= N_ROWS or \
                j < 0 or j >= N_COLS:
                 break
-            c = self.board.board[i][j]
+            c = self.board[i][j]
 
             if c0 == 0:
                 c0 = c
@@ -173,5 +192,5 @@ def test():
     from .computed_boards import computed_boards
     from .gameboard import gameboard
 
-    n = parent_node(gameboard(), computed_boards(), depth=6)
-    n.evaluate()
+    n = parent_node(gameboard(), computed_boards(), max_nodes=10_000)
+    n.recommend_move()
