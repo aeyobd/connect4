@@ -1,7 +1,6 @@
-import math
-
 N_COLS = 7
 N_ROWS = 6
+import numpy as np
 
 
 
@@ -117,7 +116,7 @@ class gameboard:
         for a in range(N_ROWS + N_COLS - 7):
             for b in range([4,5,6,6,5,4][a]):
                 i = min(N_ROWS - 1, a + 3) - b
-                j = max(0, a - 3) + b
+                j = max(0, a - 2) + b
                 if self._board[i][j] == player:
                     max_series += 1
                 else:
@@ -193,3 +192,133 @@ class gameboard:
         return from_array(self._board)
 
 
+
+class gameboard2:
+    def __init__(self, score=None, depth=None):
+        self._boards = [np.int64(0), np.int64(0)]
+        self._player_turn = 1
+        self._column_heighths = [0]*N_COLS
+
+    @property
+    def valid_moves(self):
+        """A list of the valid moves a player can make represented as integers for each column"""
+        l = []
+        for j in range(N_COLS):
+            if self[5][j] == 0:
+                l.append(j)
+        return l
+
+    @property
+    def board(self):
+        return self._board
+
+    @property
+    def score(self):
+        return self._score
+
+    @score.setter
+    def score(self, value):
+        self._score = value
+
+    @property
+    def depth(self):
+        return self._depth
+
+    @depth.setter
+    def depth(self, value):
+        self._depth = value
+
+    @property
+    def player_turn(self):
+        return self._player_turn
+
+    def move(self, j: int):
+        """Makes a move which adds a token in the jth column"""
+        if j not in self.valid_moves:
+            raise ValueError("Not a valid move")
+
+        i = self._column_heighths[j]
+        print(self.player_turn - 1)
+        self._boards[self.player_turn - 1] += 1 << i + 7*j
+        self._column_heighths[j] += 1
+
+        # if player 1 now player 2's turn, vice versa
+        self._player_turn = 3 - self.player_turn
+
+    def __getitem__(self, i):
+        row1 = self._boards[0] >> i
+        row2 = self._boards[1] >> i
+
+        l = [0] * N_COLS
+        for j in range(N_COLS):
+            l[j] += (row1 & (1 << j*7)) > 0
+            l[j] += 2 * ((row2 & (1 << j*7))>0)
+        return l
+    @property
+    def is_won(self, player=None):
+        """Checks if the game has been won,
+        i.e. there is a 4 in a row.
+
+        Parameter
+        ---------
+        player (int): default=None
+            The player to check if they have won the game.
+            Defaults to the player who made the last move.
+        Returns
+        -------
+        bool: true if the given player has won the game
+        """
+
+        if player is None:
+            player = 3 - self.player_turn 
+        
+        x = self._boards[player - 1]
+
+        # downward diagonal
+        y = x & (x >> 6)
+        if (y & (y >> 2 * 6)):
+            return True
+
+        # horizontal
+        y = x & (x >> 7)
+        if (y & (y >> 2 * 7)):
+            return True
+
+        #ascending diagonal
+        y = x & (x >> 8)
+        if (y & (y >> 2 * 8)):
+            return True
+
+        # vertical
+        y = x & (x >> 1)
+        if (y & (y >> 2 * 1)):
+            return True
+
+        return False
+
+
+    def __str__(self):
+        s = "-------------\n"
+        for i in range(N_ROWS -1, -1, -1):
+            for j in range(N_COLS):
+                val = self[i][j]
+                if val == 0:
+                    s += " "
+                elif val == 1:
+                    s += "X"
+                else:
+                    s += "O"
+                s += " "
+            s += "\n"
+        s += "-------------\n"
+        s += "0 1 2 3 4 5 6\n"
+        return s
+
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self._boards == other._boards 
+    
+    def __ne__(self, other):
+        return not self == other

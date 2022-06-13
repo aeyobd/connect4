@@ -1,7 +1,7 @@
-from gameboard import gameboard
-from parent_node import parent_node
+from .gameboard import gameboard, gameboard2
+from .parent_node import parent_node
 from random import randint
-from computed_boards import computed_boards
+from .computed_boards import computed_boards
 
 class game:
     def __init__(self):
@@ -26,12 +26,15 @@ class game:
         self.board.move(self.board.valid_moves[m])
 
     def computer_move(self):
-        node = parent_node(self.board, computed_boards())
+        node = parent_node(self.board, computed_boards(), depth=self.depth)
         m = node.recommend_move()
         self.board.move(m)
 
 
-    def start(self):
+    def start(self, computer_first=False, depth=6):
+        self.depth=depth
+        if computer_first:
+            self.board._player_turn = 2
         while not self.board.is_won:
             if self.board.player_turn == 1:
                 self.read_move()

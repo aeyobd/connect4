@@ -1,5 +1,5 @@
 import copy
-from gameboard import N_COLS, N_ROWS
+from .gameboard import N_COLS, N_ROWS
 
 class node:
     def __init__(self, parent, j):
@@ -23,8 +23,6 @@ class node:
         self.children = []
         self.n_children = len(self.board.valid_moves)
 
-        if N_COLS * N_ROWS - sum(self.board._column_heighths) < 20:
-            self.depth = 100
 
     def evaluate(self):
         # if the game is won, the node ends
@@ -44,9 +42,9 @@ class node:
             # TODO: use positional arguments to determine a better estimate
             self.computed_boards.end_count += 1
             if self.antinode:
-                self.score = 1 - self.calculate_positional_score()
-            else:
                 self.score = self.calculate_positional_score()
+            else:
+                self.score = 1 - self.calculate_positional_score()
             # self.score = 0.5
         else:
             for m in self.board.valid_moves:
@@ -69,12 +67,12 @@ class node:
             if self.antinode:
                 self.score = min([child.score for child in self.children])
                 if self.score != 0 and self.score != 1:
-                    self.score = (self.score + 1 - self.calculate_positional_score())/2
+                    self.score = self.score - 0.5 + self.calculate_positional_score()
 
             else:
                 self.score = max([child.score for child in self.children])
                 if self.score != 0 and self.score != 1:
-                    self.score = (self.score + self.calculate_positional_score())/2
+                    self.score = self.score + 0.5 - self.calculate_positional_score()
 
             
         self.board.score = self.score
@@ -132,7 +130,7 @@ class node:
         score += self.score_in_direction(0, 1)
         score += self.score_in_direction(1, 1)
         score += self.score_in_direction(1, -1)
-        score = score/20*0.1 + 0.5
+        score = score*0.002 + 0.5
         return score
 
     @property
@@ -155,9 +153,9 @@ class node:
         s += "path = %s\n" % str(self.path)
         if self.score is not None:
             s += "score = %f\n" % self.score
-        s += "end count %d\n" % self.computed_boards.end_count
-        s += "find count %d\n" % self.computed_boards.find_count
         s += "num nodes %d\n" % self.computed_boards.node_count
+        s += "find count %d\n" % self.computed_boards.find_count
+        s += "end count %d\n" % self.computed_boards.end_count
         s += "children: [\n"
         for child in self.children:
             s += "\t %s" % (child.path[-1])
@@ -169,3 +167,11 @@ class node:
     def __repr__(self):
         return str(self)
 
+
+def test():
+    from .parent_node import parent_node
+    from .computed_boards import computed_boards
+    from .gameboard import gameboard
+
+    n = parent_node(gameboard(), computed_boards(), depth=6)
+    n.evaluate()

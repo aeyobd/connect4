@@ -1,4 +1,4 @@
-from gameboard import gameboard
+from .gameboard import gameboard
 
 H = 42
 L = 2**7 * 0

@@ -1,8 +1,12 @@
 
-from game import game
+from .game import game
+from .gameboard import gameboard
+from .parent_node import parent_node
+from .computed_boards import computed_boards
 
 
-if __name__ == "__main__":
-    print("Begin")
+def main():
     g = game()
-    g.start()
+
+    n = parent_node(g.board, computed_boards(), depth=6)
+    n.evaluate()

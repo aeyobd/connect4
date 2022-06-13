@@ -1,4 +1,5 @@
-from node import node
+from .node import node
+from .gameboard import N_COLS, N_ROWS
 
 class parent_node(node):
     def __init__(self, board, computed_boards, depth = 7):
@@ -11,6 +12,13 @@ class parent_node(node):
         self.computed_boards = computed_boards
         self.computed_boards.end_count = 0
         self.computed_boards.node_count = 0
+
+        if N_COLS * N_ROWS - sum(self.board._column_heighths) < 15:
+            self.depth = 20
+        if self.n_children < 5:
+            self.depth = 24
+        if self.n_children == 5:
+            self.depth = 10
 
     def recommend_move(self):
         self.evaluate()
