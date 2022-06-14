@@ -191,9 +191,12 @@ class gameboard:
     def copy(self):
         return from_array(self._board)
 
+    def __getitem__(self, i):
+        return self._board[i]
 
 
-class gameboard:
+
+class gameboard2:
     def __init__(self, score=None, depth=None):
         self._board1 = np.int64(0)
         self._board2 = np.int64(0)

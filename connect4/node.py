@@ -60,16 +60,18 @@ class node:
                     break
 
         if self.antinode:
-            self.score = min([child.score for child in self.children])
-            if self.score == 0 or self.score == 1:
+            score = min([child.score for child in self.children])
+            if score == 0 or score == 1:
                 self.terminal = True
+                self.score = score
             if not self.terminal:
-                self.score = self.score - 0.5 + self.pos_score
+                self.score = score - 0.5 + self.pos_score
 
         else:
-            self.score = max([child.score for child in self.children])
-            if self.score == 0 or self.score == 1:
+            score = max([child.score for child in self.children])
+            if score == 0 or score == 1:
                 self.terminal = True
+                self.score = score
             if not self.terminal:
                 self.score = self.score + 0.5 - self.pos_score
 
