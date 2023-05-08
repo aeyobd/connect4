@@ -1,5 +1,5 @@
 include("gameboard.jl")
-# include("parent_node.jl")
+include("parent_node.jl")
 
 
 function get_move()
@@ -34,9 +34,9 @@ function rand_move!(gboard)
 end
 
 function computer_move!(gboard)
-    node = parent_node(self.board, computed_boards(), max_nodes = self.n_nodes)
-    m = node.recommend_move()
-    self.board.move(m)
+    p_node = ParentNode(gboard=gboard)
+    j = recommend_move!(p_node)
+    move!(gboard, j)
 end
 
 
@@ -54,16 +54,34 @@ function start_2player()
 end
 
 
-#     def start(self, computer_first=False, n_nodes=10_000):
-#         self.n_nodes = n_nodes
-#         if computer_first:
-#             self.board._player_turn = 2
-#         while not self.board.is_won:
-#             if self.board.player_turn == 1:
-#                 self.read_move()
-#             else:
-#                 print("Computer moves")
-#                 self.computer_move()
-#             print(self.board)
-#         print("player %d WON!" % (3-self.board._player_turn))
+function start(computer_first=false)
+    gboard = Gameboard()
+
+    if computer_first
+        gboard.turn += 1
+    end
+
+    while is_won(gboard) == 0
+        turn = current_player(gboard)
+        if turn == 1
+            j = get_move()
+            move!(gboard, j)
+        else
+            println("Computer moves")
+            computer_move!(gboard)
+        end
+        print(gboard)
+    end
+    ply = is_won(gboard)
+    print("player $ply WON!")
+
+end
+
+
+
+
+
+
+
+
 

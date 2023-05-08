@@ -3,9 +3,7 @@ const N_ROWS = 6
 
 
 Base.@kwdef mutable struct Gameboard
-    score::Int = 0
     turn::Int = 0
-    depth::Int = 0
     board = zeros(Int, N_ROWS, N_COLS)
 end
 
@@ -18,6 +16,19 @@ function move!(gboard::Gameboard, j)
     i = column_height(gboard, j) 
     gboard.board[i,j] = current_player(gboard)
     gboard.turn += 1
+end
+
+
+function move(gboard::Gameboard, j)
+    if !(j in valid_moves(gboard))
+         error("not a valid move")
+    end
+
+    i = column_height(gboard, j) 
+    board = copy(gboard.board)
+    board[i, j] = current_player(gboard)
+
+    return Gameboard(gboard.turn + 1, board)
 end
 
 
