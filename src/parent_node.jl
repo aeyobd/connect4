@@ -1,8 +1,5 @@
 include("node.jl")
-include("computed_boards.jl")
 include("gameboard.jl")
-
-const MAX_NODES = 10000
 
 
 Base.@kwdef mutable struct ParentNode <: ANode
@@ -10,67 +7,44 @@ Base.@kwdef mutable struct ParentNode <: ANode
     children = Node[]
     antinode = false
     
-
-    depth::Int = 0
     score::Float64 = 0.5
-    terminal = false
-    has_children = false
+    depth = 0
     computed_boards = ComputedBoards()
 end
 
 
-function recommend_move!(p_node::ParentNode)
-    depth = 3
+function recommend_move!(p_node::ParentNode, max_nodes=10000)
+    max_depth = 3
     add_children!(p_node)
 
-    while p_node.computed_boards.node_count < MAX_NODES
-        println("evaluating at depth $depth")
-        reevaluate!(p_node, depth)
+    while p_node.computed_boards.node_count < max_nodes
+        println("evaluating at depth $max_depth")
+        reevaluate!(p_node, max_depth)
 
-        terminate = true
-        for child in p_node.children
-            terminate &= child.terminal
-        end
-
-        if terminate
+        if 1 >= sum(!child.terminal for child in p_node.children)
             break
         end
-
-        depth += 1
+            
+        max_depth += 1
     end
 
-    max_score = -1
-    best_move = 0
+    max_idx = argmax(child.score for child in p_node.children)
 
-    for child in p_node.children
-        if child.score > max_score
-            max_score = child.score
-            best_move = child.last_move
-        end
-    end
+    best_move = p_node.children[max_idx].last_move
+    max_score = p_node.children[max_idx].score
 
     println("computer calculates $best_move with score $max_score")
     println("evaluated $(p_node.computed_boards.node_count) boards")
     return best_move
 end
     
-function reevaluate!(p_node::ParentNode, depth)
+
+
+function reevaluate!(p_node::ParentNode, max_depth)
     for child in p_node.children
-        reevaluate!(child, depth)
-    end
-    p_node.score = maximum(child.score for child in p_node.children)
-end
-    
+        reevaluate!(child, max_depth)
 
-function evaluate!(p_node::ParentNode)
-    for m in valid_moves(p_node.gboard)
-        child = node(p_node, m)
-        child.evaluate()
-
-        push!(p_node.children, child)
-
-        # trimming the tree
-        if child.score == 0 && p_node.antinodex
+        if child.score == 0 && p_node.antinode
             p_node.score = 0
             return
         end
@@ -79,9 +53,9 @@ function evaluate!(p_node::ParentNode)
             p_node.score = 1
             return
         end
-
-        p_node.score = maximum(child.score for child in p_node.children)
     end
+
+    p_node.score = maximum(child.score for child in p_node.children)
 end
 
 

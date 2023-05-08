@@ -1,31 +1,64 @@
-
 include("gameboard.jl")
+include("node.jl")
+
 
 
 Base.@kwdef mutable struct ComputedBoards
     node_count = 0
+    nodes  = Array[ Node[] for _ in 1:N_ROWS*N_COLS ]
 end
 
 
-# H = 42
-# L = 2**7 * 0
-#     def find_board(self, in_board):
-#         i = sum(in_board._column_heighths)
-#         j = 0
-#         for m in range(7):
-#             j += 2**m * (in_board.board[0][m] > 0)
-#         for b in self.boards[i*L + j]:
-#             if b == in_board:
-#                 if b.score != 0.5:
-#                     return b 
-#                 if b.depth >= in_board.depth:
-#                     return b
-#         return None
-# 
-#     def add_board(self, board):
-#         i = sum(board._column_heighths)
-#         j = 0
-#         for m in range(7):
-#             j += 2**m * (board.board[0][m] > 0)
-#         self.boards[i*L + j].append(board)
-#     end
+
+"""
+Check if a node with the current gameboard
+exists. Otherwise, returns a new node
+"""
+function add_node!(parent, j)
+    nodes = parent.computed_boards.nodes
+    gboard= move(parent.gboard, j)
+
+    idx = gboard.turn # each move creates a new turn
+
+    for node in nodes[idx]
+        if node.gboard.board == gboard.board
+            push!(parent.children, node)
+            return node
+        end
+    end
+
+    node = Node(;gboard=gboard, 
+                parent=parent, 
+                depth=parent.depth + 1, 
+                last_move=j, 
+                antinode=!parent.antinode, 
+                computed_boards=parent.computed_boards)
+
+    evaluate!(node)
+    push!(nodes[idx], node)
+    push!(parent.children, node)
+    
+
+    return node
+end
+
+
+
+function evaluate!(n::Node)
+    # if the game is won, the node ends
+    
+    if is_won(n.gboard) == 1
+        n.score = 0
+        n.terminal = true
+    elseif is_won(n.gboard) == -1
+        n.score = 1
+        n.terminal = true
+
+    elseif length(n.children) == 0
+        n.score = 0.5 # game is tied
+        n.terminal = true
+    else
+        n.score = 0.5 
+    end
+end
+

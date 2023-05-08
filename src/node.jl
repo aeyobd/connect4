@@ -1,7 +1,7 @@
 include("gameboard.jl")
-include("computed_boards.jl")
-
 abstract type ANode end
+
+const ϵ = 1e-4
 
 Base.@kwdef mutable struct Node <: ANode
     gboard::Gameboard
@@ -11,6 +11,7 @@ Base.@kwdef mutable struct Node <: ANode
     depth::Int = 0
 
     terminal::Bool = false
+    eval_depth::Int = 0
     antinode::Bool
 
     last_move::Int = 0
@@ -21,25 +22,80 @@ Base.@kwdef mutable struct Node <: ANode
 end
 
 
-function Node(parent, j)
-    gboard = move(parent.gboard, j)
-    depth = parent.depth + 1
-
-    antinode = !parent.antinode
-
-    return Node(;gboard=gboard, parent=parent, depth=depth, 
-                last_move=j, antinode=antinode, computed_boards=parent.computed_boards)
-end
 
 
-function add_children!(n::ANode)
-    for j in valid_moves(n.gboard)
-        child = Node(n, j)
-        push!(n.children, child)
-        n.computed_boards.node_count += 1
+function add_children!(node::ANode)
+    for j in valid_moves(node.gboard)
+        add_node!(node, j)
+        node.computed_boards.node_count += 1
     end
-    n.has_children = true
 end
+
+
+
+function reevaluate!(node::Node, depth)
+    if node.terminal || depth < node.depth || depth < node.eval_depth
+        return
+    end
+
+    if !node.has_children
+        add_children!(node)
+        node.has_children = true
+    end
+
+    for child in node.children
+        reevaluate!(child, depth)
+    end
+
+    node.eval_depth = depth
+    rescore!(node)
+end
+
+
+
+
+
+
+Base.@kwdef mutable struct ComputedBoards
+    node_count = 0
+    nodes  = Array[ Node[] for _ in 1:N_ROWS*N_COLS ]
+end
+
+
+
+"""
+Check if a node with the current gameboard
+exists. Otherwise, returns a new node
+"""
+function add_node!(parent, j)
+    nodes = parent.computed_boards.nodes
+    gboard= move(parent.gboard, j)
+
+    idx = gboard.turn # each move creates a new turn
+
+    for node in nodes[idx]
+        if node.gboard.board == gboard.board
+            push!(parent.children, node)
+            return node
+        end
+    end
+
+    node = Node(;gboard=gboard, 
+                parent=parent, 
+                depth=parent.depth + 1, 
+                last_move=j, 
+                antinode=!parent.antinode, 
+                computed_boards=parent.computed_boards,
+                terminal = false,
+                has_children = false)
+
+    evaluate!(node)
+    push!(nodes[idx], node)
+    push!(parent.children, node)
+
+    return node
+end
+
 
 
 function evaluate!(n::Node)
@@ -47,82 +103,70 @@ function evaluate!(n::Node)
     if is_won(n.gboard) == 1
         n.score = 0
         n.terminal = true
-    elseif is_won(n.gboard) == 2
+    elseif is_won(n.gboard) == -1
         n.score = 1
         n.terminal = true
-
-    elseif length(n.children) == 0
-        n.score = 0.5 # game is tied
+    elseif length(valid_moves(n.gboard)) == 0
+        n.score = 0.5
         n.terminal = true
     else
         n.score = 0.5 
+        n.terminal = false
     end
 end
 
 
-function reevaluate!(n::Node, depth)
-    if !n.terminal
-        if !n.has_children
-            add_children!(n)
-            evaluate!(n)
-        end
-        if n.depth < depth
-            for child in n.children
-                reevaluate!(child, depth)
-            end
-            rescore(n)
-        end
-    end
-end
-
-
-function rescore(n::Node)
-    if n.terminal
-        return
+function rescore!(node::Node)
+    if length(node.children) == 0
+        println("oops")
+        println("oops")
+        println("oops")
     end
 
-    n.terminal = true
+    terminal = true
 
-    for child in n.children
-        n.terminal &= child.terminal
-        if child.score == 0
-            if n.antinode
-                n.score = 0
-                n.terminal = true
-                break
-            end
-        elseif child.score == 1
-            if !n.antinode
-                n.score = 1
-                n.terminal = true
-                break
-            end
+    for child in node.children
+        terminal &= child.terminal
+        if child.score == 0 && node.antinode
+            node.score = 0 + ϵ
+            terminal = true
+            break
+        elseif child.score == 1 && !node.antinode
+            node.score = 1 - ϵ
+            terminal = true
+            break
         end
     end
+    node.terminal = terminal
 
-    if n.antinode
-        score = minimum([child.score for child in n.children])
+    if node.antinode
+        score = minimum([child.score for child in node.children])
         if score == 0 || score == 1
-            n.terminal = true
-            n.score = score
+            node.terminal = true
+            node.score = score
         end
-        if !n.terminal
-            n.score = score - 0.5 + n.score
+        if !node.terminal
+            node.score = score - 0.5 + node.score
         end
     else
-        score = maximum([child.score for child in n.children])
+        score = maximum([child.score for child in node.children])
         if score == 0 || score == 1
-            n.terminal = true
-            n.score = score
+            node.terminal = true
+            node.score = score
         end
-        if !n.terminal
-            n.score = n.score + 0.5 - score
+        if !node.terminal
+            node.score = node.score + 0.5 - score
         end
     end
 end
 
 
-
+function Base.show(io::IO, node::Node)
+    println(io, "move = ", node.last_move)
+    println(io, "score = ", node.score)
+    println(io, "children ", length(node.children))
+    println(io, "end ", node.terminal)
+end
 
 
 

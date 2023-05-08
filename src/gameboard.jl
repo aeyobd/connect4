@@ -5,6 +5,7 @@ const N_ROWS = 6
 Base.@kwdef mutable struct Gameboard
     turn::Int = 0
     board = zeros(Int, N_ROWS, N_COLS)
+    score::Float64 = 0.5
 end
 
 
@@ -28,12 +29,12 @@ function move(gboard::Gameboard, j)
     board = copy(gboard.board)
     board[i, j] = current_player(gboard)
 
-    return Gameboard(gboard.turn + 1, board)
+    return Gameboard(turn=gboard.turn + 1, board=board)
 end
 
 
 function column_height(gboard::Gameboard, j)
-    return argmin(gboard.board[:,j])
+    return findfirst(isequal(0), gboard.board[:,j])
 end
 
 
@@ -43,7 +44,7 @@ end
 
 
 function current_player(gboard::Gameboard)
-    return gboard.turn % 2 == 0 ? 1 : 2
+    return gboard.turn % 2 == 0 ? 1 : -1
 end
 
 
