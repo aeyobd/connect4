@@ -4,7 +4,7 @@ abstract type ANode end
 const ϵ = 1e-4
 
 Base.@kwdef mutable struct Node <: ANode
-    gboard::Gameboard
+    board::Gameboard
 
     parent::Union{ANode, Nothing} = Nothing
     children::Vector{Node} = []
@@ -21,16 +21,19 @@ Base.@kwdef mutable struct Node <: ANode
     computed_boards = nothing
 end
 
+
+
 Base.@kwdef mutable struct ComputedBoards
     node_count = 0
-    nodes  = Dict{Matrix, Node}()
+    node_links = 0
+    nodes  = Dict{Tuple{UInt64, UInt64}, Node}()
 end
 
 
 
 
 function add_children!(node::ANode)
-    for j in valid_moves(node.gboard)
+    for j in valid_moves(node.board)
         add_node!(node, j)
         node.computed_boards.node_count += 1
     end
@@ -69,17 +72,17 @@ exists. Otherwise, returns a new node
 """
 function add_node!(parent, j)
     nodes = parent.computed_boards.nodes
-    gboard= move(parent.gboard, j)
+    board= move(parent.board, j)
 
-    idx = gboard.turn # each move creates a new turn
-
-    if gboard.board in keys(nodes)
-        node = nodes[gboard.board]
+    idx = (board.board1, board.board2)
+    if idx in keys(nodes)
+        node = nodes[idx]
         push!(parent.children, node)
+        parent.computed_boards.node_links += 1
         return node
     end
 
-    node = Node(;gboard=gboard, 
+    node = Node(;board=board, 
                 parent=parent, 
                 depth=parent.depth + 1, 
                 last_move=j, 
@@ -89,7 +92,7 @@ function add_node!(parent, j)
                 has_children = false)
 
     evaluate!(node)
-    push!(nodes, gboard.board => node)
+    push!(nodes, idx => node)
 
     push!(parent.children, node)
     return node
@@ -99,29 +102,25 @@ end
 
 function evaluate!(n::Node)
     # if the game is won, the node ends
-    if is_won(n.gboard) == 1
+    if is_won(n.board) == 1
         n.score = 0
         n.terminal = true
-    elseif is_won(n.gboard) == -1
+    elseif is_won(n.board) == -1
         n.score = 1
         n.terminal = true
-    elseif length(valid_moves(n.gboard)) == 0
+    elseif is_tied(n.board)
         n.score = 0.5
         n.terminal = true
     else
-        n.score = 0.5 
+        j = n.last_move
+        i = column_height(n.board, j) - 1
+        n.score = pos_score(n.board, i, j)
         n.terminal = false
     end
 end
 
 
 function rescore!(node::Node)
-    if length(node.children) == 0
-        println("oops")
-        println("oops")
-        println("oops")
-    end
-
     terminal = true
 
     for child in node.children

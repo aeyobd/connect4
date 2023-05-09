@@ -26,32 +26,32 @@ function get_move()
 end
 
 
-function rand_move!(gboard)
-    moves = valid_moves(gboard)
+function rand_move!(board)
+    moves = valid_moves(board)
     m = rand(Int) % length(moves) + 1
-    move!(gboard, moves[m])
+    move!(board, moves[m])
     return m
 end
 
 
-function computer_move!(gboard, max_nodes=10000)
-    p_node = ParentNode(gboard=gboard)
+function computer_move!(board, max_nodes=10000)
+    p_node = ParentNode(board=board)
     j = recommend_move!(p_node, max_nodes)
-    move!(gboard, j)
+    move!(board, j)
 end
 
 
 function start_2player()
-    gboard = Gameboard()
-    while is_won(gboard) == 0
-        ply = current_player(gboard) == 1 ? 1 : 2
+    board = Gameboard()
+    while is_won(board) == 0
+        ply = current_player(board) == 1 ? 1 : 2
         println("player $ply turn")
         move = get_move()
-        move!(gboard, move)
-        println(gboard)
+        move!(board, move)
+        println(board)
     end
 
-    ply =  is_won(gboard)
+    ply =  is_won(board)
     if ply == -1 
         println("player 2 Won")
     elseif  ply == 1 
@@ -63,24 +63,24 @@ end
 
 
 function start(;computer_first=false, max_nodes=10000)
-    gboard = Gameboard()
+    board = Gameboard()
 
     if computer_first
-        gboard.turn += 1
+        board.turn += 1
     end
 
-    while is_won(gboard) == 0
-        turn = current_player(gboard)
+    while is_won(board) == 0
+        turn = current_player(board)
         if turn == 1
             j = get_move()
-            move!(gboard, j)
+            move!(board, j)
         else
             println("Computer moves")
-            computer_move!(gboard, max_nodes)
+            computer_move!(board, max_nodes)
         end
-        print(gboard)
+        print(board)
     end
-    ply = is_won(gboard)
+    ply = is_won(board)
     print("player $ply WON!")
 
 end

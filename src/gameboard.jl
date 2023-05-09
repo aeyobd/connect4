@@ -4,8 +4,8 @@ const N_ROWS = 6
 
 Base.@kwdef mutable struct Gameboard
     turn::Int = 0
-    board1::Int64 = 0
-    board2::Int64 = 0
+    board1::UInt64 = 0
+    board2::UInt64 = 0
     score::Float64 = 0.5
 end
 
@@ -17,10 +17,10 @@ end
 IndexStyle(board::Gameboard) = CartesianIndex()
 
 function _tuple_to_idx(i::Int, j::Int)
-    return (i-1)*N_COLS + j - 1
+    return (i-1)*(N_COLS+1) + j - 1
 end
 
-function Base.getindex(board::Gameboard, i::Int64, j::Int64)
+function Base.getindex(board::Gameboard, i::Integer, j::Integer)
     idx = _tuple_to_idx(i, j)
     v1 = board.board1 & 1<<idx
     v2 = board.board2 & 1<<idx
@@ -35,7 +35,7 @@ function Base.getindex(board::Gameboard, i::Int64, j::Int64)
 end
 
 
-function Base.setindex!(board::Gameboard, X::Int, i::Int64, j::Int64)
+function Base.setindex!(board::Gameboard, X::Int, i::Integer, j::Integer)
     idx = _tuple_to_idx(i, j)
 
     if X == 1
@@ -74,12 +74,13 @@ function move!(board::Gameboard, j)
 end
 
 
-function move(gboard::Gameboard, j)
-    if !(j in valid_moves(gboard))
+function move(board::Gameboard, j)
+    if !(j in valid_moves(board))
         throw(ValueError("not a valid move"))
     end
 
-    i = column_height(gboard, j) 
+    i = column_height(board, j) 
+    idx = _tuple_to_idx(i, j)
     board1 = board.board1
     board2 = board.board2
 
@@ -89,7 +90,7 @@ function move(gboard::Gameboard, j)
         board2 |= 1 << idx
     end
 
-    return Gameboard(turn=gboard.turn + 1, board1=board1, board2=board2)
+    return Gameboard(turn=board.turn + 1, board1=board1, board2=board2)
 end
 
 
@@ -125,29 +126,19 @@ function is_won(board::Gameboard)
     return 0
 end
 
+function is_tied(board::Gameboard)
+    mask = sum(1<<_tuple_to_idx(6, j) for j in 1:7)
+    c = mask == mask & (board.board1 | board.board2)
+    return c
+end
 
-function _is_won(x::Int64)
-    y = x & (x >> 6)
-    if (y & (y >> (2 * 6))) > 0
-        return true
-    end
 
-    # horizontal
-    y = x & (x >> 7)
-    if (y & (y >> (2 * 7))) > 0
-        return true
-    end
-
-    #ascending diagonal
-    y = x & (x >> 8)
-    if (y & (y >> (2 * 8))) > 0
-        return true
-    end
-
-    # vertical
-    y = x & (x >> 1)
-    if (y & (y >> (2 * 1))) > 0
-        return true
+function _is_won(x::UInt64)
+    for q in [7,8,9,1]
+        y = x & (x >>> q)
+        if (y & (y >>> (2 * q))) > 0
+            return true
+        end
     end
 
     return false
@@ -156,27 +147,81 @@ end
 
 
 function Base.show(io::IO, gboard::Gameboard)
-    println()
-    println(io, "-"^11)
-    for i in N_ROWS:-1:1
+    fgcolor = "\u001b[38;5;8m"
+    colorclear = "\u001b[0m"
+    println(io)
+    println(io, fgcolor, "┌───┬───┬───┬───┬───┬───┬───┐", colorclear)
+
+    for i in reverse(1:N_ROWS)
+        print(io, fgcolor, "│ ", colorclear)
         for j in 1:N_COLS
             val = gboard[i, j]
             if val == 0
                 s = " "
             elseif val == 1
-                s = "x"
+                s = "\u001b[31mX\u001b[0m"
             else
-                s = "o"
+                s = "\u001b[34mO\u001b[0m"
             end
-            print(io, s, " ")
+            print(io, s, fgcolor, " │ ", colorclear)
         end
-        println()
+        println(io)
+        if i != 1
+            println(io, fgcolor, "├───┼───┼───┼───┼───┼───┼───┤", colorclear)
+        end
     end
 
-    println(io, "-------------")
-    println(io, "1 2 3 4 5 6 7")
+    println(io, fgcolor, "└───┴───┴───┴───┴───┴───┴───┘", colorclear)
+    println(io, "  1   2   3   4   5   6   7 ")
+end
+
+
+BOARD_MASK = sum(1 << _tuple_to_idx(i, j) for i in 1:N_ROWS, j in 1:N_COLS)
+
+
+
+function pos_score(board::Gameboard, i, j)
+    score = 0
+
+    # count whitespace for each player and see
+    # how many points...
+    b1 = board.board1 & (~board.board2)
+    b2 = board.board2 & (~board.board1)
+    b0 = (~board.board2) & (~board.board1) & BOARD_MASK
+
+    s1 = _pos_score(b1, i, j)
+    s2 = _pos_score(b2, i, j)
+    s0 = _pos_score(b0, i, j)
+
+    return 1/4*(s1 + s2 - s0) + 0.5
 end
 
 
 
+function _pos_score(x::UInt64, i, j)
+    score = 0
+    for q in [7,8,9,1]
+        scorel = 0
+        scorer = 0
+
+        for l in 1:3
+            yl = x
+            yr = x
+            for _ in 1:l
+                yl &= (x >> (q*l))
+                yr &= (x << (q*l))
+            end
+            if yl > 0
+                scorel = l
+            end
+            if yr > 0
+                scorer = l
+            end
+        end
+
+        score += scorel + scorer
+    end
+
+    return (score - 12)/24
+end
 
