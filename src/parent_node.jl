@@ -24,6 +24,9 @@ function recommend_move!(p_node::ParentNode, max_nodes=10000)
         if 1 >= sum(!child.terminal for child in p_node.children)
             break
         end
+        if max_depth > 50
+            break
+        end
             
         max_depth += 1
     end

@@ -21,6 +21,11 @@ Base.@kwdef mutable struct Node <: ANode
     computed_boards = nothing
 end
 
+Base.@kwdef mutable struct ComputedBoards
+    node_count = 0
+    nodes  = Dict{Matrix, Node}()
+end
+
 
 
 
@@ -56,11 +61,6 @@ end
 
 
 
-Base.@kwdef mutable struct ComputedBoards
-    node_count = 0
-    nodes  = Array[ Node[] for _ in 1:N_ROWS*N_COLS ]
-end
-
 
 
 """
@@ -73,11 +73,10 @@ function add_node!(parent, j)
 
     idx = gboard.turn # each move creates a new turn
 
-    for node in nodes[idx]
-        if node.gboard.board == gboard.board
-            push!(parent.children, node)
-            return node
-        end
+    if gboard.board in keys(nodes)
+        node = nodes[gboard.board]
+        push!(parent.children, node)
+        return node
     end
 
     node = Node(;gboard=gboard, 
@@ -90,9 +89,9 @@ function add_node!(parent, j)
                 has_children = false)
 
     evaluate!(node)
-    push!(nodes[idx], node)
-    push!(parent.children, node)
+    push!(nodes, gboard.board => node)
 
+    push!(parent.children, node)
     return node
 end
 
