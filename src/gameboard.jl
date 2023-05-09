@@ -150,6 +150,7 @@ function Base.show(io::IO, gboard::Gameboard)
     fgcolor = "\u001b[38;5;8m"
     colorclear = "\u001b[0m"
     println(io)
+    println(io, "  1   2   3   4   5   6   7 ")
     println(io, fgcolor, "┌───┬───┬───┬───┬───┬───┬───┐", colorclear)
 
     for i in reverse(1:N_ROWS)
@@ -172,7 +173,6 @@ function Base.show(io::IO, gboard::Gameboard)
     end
 
     println(io, fgcolor, "└───┴───┴───┴───┴───┴───┴───┘", colorclear)
-    println(io, "  1   2   3   4   5   6   7 ")
 end
 
 
@@ -181,8 +181,6 @@ BOARD_MASK = sum(1 << _tuple_to_idx(i, j) for i in 1:N_ROWS, j in 1:N_COLS)
 
 
 function pos_score(board::Gameboard, i, j)
-    score = 0
-
     # count whitespace for each player and see
     # how many points...
     b1 = board.board1 & (~board.board2)
@@ -193,7 +191,9 @@ function pos_score(board::Gameboard, i, j)
     s2 = _pos_score(b2, i, j)
     s0 = _pos_score(b0, i, j)
 
-    return 1/4*(s1 + s2 - s0) + 0.5
+    score =  1/4*(s1 + s2 - s0) + 0.5
+
+    return score
 end
 
 

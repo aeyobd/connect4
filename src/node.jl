@@ -125,12 +125,12 @@ function rescore!(node::Node)
 
     for child in node.children
         terminal &= child.terminal
-        if child.score == 0 && node.antinode
-            node.score = 0 + ϵ
+        if child.score <= 0 + 50ϵ && node.antinode && child.terminal
+            node.score = child.score + ϵ
             terminal = true
             break
-        elseif child.score == 1 && !node.antinode
-            node.score = 1 - ϵ
+        elseif child.score >= 1 - 50ϵ && !node.antinode && child.terminal
+            node.score = child.score - ϵ
             terminal = true
             break
         end
@@ -144,7 +144,7 @@ function rescore!(node::Node)
             node.score = score
         end
         if !node.terminal
-            node.score = score - 0.5 + node.score
+            node.score = (score + node.score)/2
         end
     else
         score = maximum([child.score for child in node.children])
@@ -153,7 +153,7 @@ function rescore!(node::Node)
             node.score = score
         end
         if !node.terminal
-            node.score = node.score + 0.5 - score
+            node.score = (score + node.score)/2
         end
     end
 end
