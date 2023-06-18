@@ -5,9 +5,7 @@ include("gameboard.jl")
 Base.@kwdef mutable struct ParentNode <: ANode
     board::Gameboard
     children = Node[]
-    antinode = false
     
-    score::Float64 = 0.5
     depth = 0
     computed_boards = ComputedBoards()
 end
@@ -24,6 +22,7 @@ function recommend_move!(p_node::ParentNode, max_nodes=10000)
         if 1 >= sum(!child.terminal for child in p_node.children)
             break
         end
+
         if max_depth >= N_ROWS*N_COLS
             break
         end
@@ -32,6 +31,15 @@ function recommend_move!(p_node::ParentNode, max_nodes=10000)
     end
 
     max_idx = argmax(child.score for child in p_node.children)
+
+    for child in p_node.children
+        s = child.score
+        if s > -0.99
+            println(child.last_move, "\t", child.score)
+        else
+            println(child.last_move, "\t x")
+        end
+    end
 
     best_move = p_node.children[max_idx].last_move
     max_score = p_node.children[max_idx].score
@@ -47,19 +55,7 @@ end
 function reevaluate!(p_node::ParentNode, max_depth)
     for child in p_node.children
         reevaluate!(child, max_depth)
-
-        if child.score == 0 && p_node.antinode
-            p_node.score = 0
-            return
-        end
-
-        if child.score == 1 && !p_node.antinode
-            p_node.score = 1
-            return
-        end
     end
-
-    p_node.score = maximum(child.score for child in p_node.children)
 end
 
 

@@ -180,48 +180,51 @@ BOARD_MASK = sum(1 << _tuple_to_idx(i, j) for i in 1:N_ROWS, j in 1:N_COLS)
 
 
 
-function pos_score(board::Gameboard, i, j)
-    # count whitespace for each player and see
-    # how many points...
-    b1 = board.board1 & (~board.board2)
-    b2 = board.board2 & (~board.board1)
-    b0 = (~board.board2) & (~board.board1) & BOARD_MASK
+function pos_score(board::Gameboard)
+    # count num of winning spots
+    #
+    player = -current_player(board)
 
-    s1 = _pos_score(b1, i, j)
-    s2 = _pos_score(b2, i, j)
-    s0 = _pos_score(b0, i, j)
+    mask = (BOARD_MASK ⊻ (board.board1 & board.board2))
 
-    score =  1/4*(s1 + s2 - s0) + 0.5
+    count = _pos_score(board.board1, mask) - _pos_score(board.board2, mask)
 
-    return score
+    return player * count / (N_COLS * N_ROWS)
 end
 
 
+function _pos_score(p::UInt64, mask)
+    # vertical
+    r = (p << 1)
+    r &= p << 2
+    r &= p << 3
 
-function _pos_score(x::UInt64, i, j)
-    score = 0
-    for q in [7,8,9,1]
-        scorel = 0
-        scorer = 0
+    for s in [7,8,9]
+        x = (p << s) & (p << 2*s) 
+        r |= x & (p << 3*s)
+        r |= x & (p >>> s)
 
-        for l in 1:3
-            yl = x
-            yr = x
-            for _ in 1:l
-                yl &= (x >> (q*l))
-                yr &= (x << (q*l))
-            end
-            if yl > 0
-                scorel = l
-            end
-            if yr > 0
-                scorer = l
-            end
-        end
-
-        score += scorel + scorer
+        x = (p >>> s) & (p >>> 2*s) 
+        r |= x & (p >>> 3*s)
+        r |= x & (p << s)
     end
 
-    return (score - 12)/24
+    pos = r & mask
+
+    return  count_board(pos)
 end
+
+
+function count_board(p::UInt64)
+    c::Int = 0
+    
+    x = p
+    while x > 0
+        x &= x - 1
+        c += 1
+    end
+
+    return c
+end
+
 

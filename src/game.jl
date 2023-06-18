@@ -2,7 +2,7 @@ include("gameboard.jl")
 include("parent_node.jl")
 
 
-function get_move()
+function get_move(board)
     while true
         println("Enter a move")
         inp = readline()
@@ -18,8 +18,12 @@ function get_move()
             end
         catch ArgumentError
             println("must enter a digit between 0 and 6")
-        else
+        end
+
+        if m in valid_moves(board)
             return m
+        else
+            print("invalid move: %m")
         end
 
     end
@@ -72,7 +76,7 @@ function start(;computer_first=false, max_nodes=10000)
     while is_won(board) == 0
         turn = current_player(board)
         if turn == 1
-            j = get_move()
+            j = get_move(board)
             move!(board, j)
         else
             println("Computer moves")

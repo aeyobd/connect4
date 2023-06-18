@@ -12,7 +12,6 @@ Base.@kwdef mutable struct Node <: ANode
 
     terminal::Bool = false
     eval_depth::Int = 0
-    antinode::Bool
 
     last_move::Int = 0
 
@@ -57,12 +56,23 @@ function reevaluate!(node::Node, depth)
 
     node.eval_depth = depth
     rescore!(node)
+
+    if node.depth < depth + 2
+        prune!(node)
+    end
 end
 
 
-
-
-
+function prune!(node::Node, min_nodes=3)
+    while length(node.children) > min_nodes
+        scores = [child.score for child in node.children]
+        idx_m = argmin(scores)
+        if minimum(scores) == maximum(scores)
+            return
+        end
+        deleteat!(node.children, idx_m)
+    end
+end
 
 
 
@@ -86,7 +96,6 @@ function add_node!(parent, j)
                 parent=parent, 
                 depth=parent.depth + 1, 
                 last_move=j, 
-                antinode=!parent.antinode, 
                 computed_boards=parent.computed_boards,
                 terminal = false,
                 has_children = false)
@@ -102,60 +111,25 @@ end
 
 function evaluate!(n::Node)
     # if the game is won, the node ends
-    if is_won(n.board) == 1
-        n.score = 0
-        n.terminal = true
-    elseif is_won(n.board) == -1
+    if is_won(n.board) != 0
         n.score = 1
         n.terminal = true
     elseif is_tied(n.board)
-        n.score = 0.5
+        n.score = 0
         n.terminal = true
     else
-        j = n.last_move
-        i = column_height(n.board, j) - 1
-        n.score = pos_score(n.board, i, j)
+        n.score = pos_score(n.board)
         n.terminal = false
     end
 end
 
 
 function rescore!(node::Node)
-    terminal = true
-
-    for child in node.children
-        terminal &= child.terminal
-        if child.score <= 0 + 50ϵ && node.antinode && child.terminal
-            node.score = child.score + ϵ
-            terminal = true
-            break
-        elseif child.score >= 1 - 50ϵ && !node.antinode && child.terminal
-            node.score = child.score - ϵ
-            terminal = true
-            break
-        end
+    if node.terminal
+        return
     end
-    node.terminal = terminal
-
-    if node.antinode
-        score = minimum([child.score for child in node.children])
-        if score == 0 || score == 1
-            node.terminal = true
-            node.score = score
-        end
-        if !node.terminal
-            node.score = (score + node.score)/2
-        end
-    else
-        score = maximum([child.score for child in node.children])
-        if score == 0 || score == 1
-            node.terminal = true
-            node.score = score
-        end
-        if !node.terminal
-            node.score = (score + node.score)/2
-        end
-    end
+    node.score = -maximum([child.score for child in node.children]) - ϵ
+    node.terminal = abs(node.score) > 1 - 50ϵ
 end
 
 
