@@ -1,5 +1,5 @@
-include("gameboard.jl")
-include("parent_node.jl")
+include("board.jl")
+include("node.jl")
 
 
 function get_move(board)
@@ -38,10 +38,13 @@ function rand_move!(board)
 end
 
 
-function computer_move!(board, max_nodes=10000)
-    p_node = ParentNode(board=board)
-    j = recommend_move!(p_node, max_nodes)
-    move!(board, j)
+function computer_move!(board, depth=5)
+    boards = ComputedBoards()
+    s_n, move = score(board, depth, -Inf, Inf, boards)
+
+    println(s_n)
+    println(move)
+    move!(board, move)
 end
 
 
@@ -66,7 +69,7 @@ function start_2player()
 end
 
 
-function start(;computer_first=false, max_nodes=10000)
+function start(;computer_first=false, depth=5)
     board = Gameboard()
 
     if computer_first
@@ -80,7 +83,7 @@ function start(;computer_first=false, max_nodes=10000)
             move!(board, j)
         else
             println("Computer moves")
-            computer_move!(board, max_nodes)
+            computer_move!(board, depth)
         end
         print(board)
     end

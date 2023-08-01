@@ -1,144 +1,82 @@
-include("gameboard.jl")
-abstract type ANode end
+include("board.jl")
 
 const ϵ = 1e-4
-
-Base.@kwdef mutable struct Node <: ANode
-    board::Gameboard
-
-    parent::Union{ANode, Nothing} = Nothing
-    children::Vector{Node} = []
-    depth::Int = 0
-
-    terminal::Bool = false
-    eval_depth::Int = 0
-
-    last_move::Int = 0
-
-    score::Float64 = 0.5
-    has_children = false
-    computed_boards = nothing
-end
-
+F = Float64
 
 
 Base.@kwdef mutable struct ComputedBoards
     node_count = 0
     node_links = 0
-    nodes  = Dict{Tuple{UInt64, UInt64}, Node}()
+    nodes  = Dict{Tuple{UInt64, UInt64}, F}()
+    moves  = Dict{Tuple{UInt64, UInt64}, Int}()
 end
 
-
-
-
-function add_children!(node::ANode)
-    for j in valid_moves(node.board)
-        add_node!(node, j)
-        node.computed_boards.node_count += 1
-    end
+Base.@kwdef mutable struct node_state
+    α::F
+    β::F
+    depth::Int
 end
 
-
-
-function reevaluate!(node::Node, depth)
-    if node.terminal || depth < node.depth || depth < node.eval_depth
-        return
-    end
-
-    if !node.has_children
-        add_children!(node)
-        node.has_children = true
-    end
-
-    for child in node.children
-        reevaluate!(child, depth)
-    end
-
-    node.eval_depth = depth
-    rescore!(node)
-
-    if node.depth < depth + 2
-        prune!(node)
-    end
-end
-
-
-function prune!(node::Node, min_nodes=3)
-    while length(node.children) > min_nodes
-        scores = [child.score for child in node.children]
-        idx_m = argmin(scores)
-        if minimum(scores) == maximum(scores)
-            return
+function emminant_win(board::Gameboard, moves)
+    for j in moves
+        if is_won(move(board, j))
+            return true
         end
-        deleteat!(node.children, idx_m)
     end
+    return false
 end
 
 
+function score(board::Gameboard, depth, α, β, boards)
 
-"""
-Check if a node with the current gameboard
-exists. Otherwise, returns a new node
-"""
-function add_node!(parent, j)
-    nodes = parent.computed_boards.nodes
-    board= move(parent.board, j)
-
-    idx = (board.board1, board.board2)
-    if idx in keys(nodes)
-        node = nodes[idx]
-        push!(parent.children, node)
-        parent.computed_boards.node_links += 1
-        return node
+    k = (board.board1, board.board2)
+    if k in keys(boards.nodes)
+        return boards.nodes[k], boards.moves[k]
     end
 
-    node = Node(;board=board, 
-                parent=parent, 
-                depth=parent.depth + 1, 
-                last_move=j, 
-                computed_boards=parent.computed_boards,
-                terminal = false,
-                has_children = false)
+    descend = true
+    moves = valid_moves(board)
 
-    evaluate!(node)
-    push!(nodes, idx => node)
-
-    push!(parent.children, node)
-    return node
-end
-
-
-
-function evaluate!(n::Node)
-    # if the game is won, the node ends
-    if is_won(n.board) != 0
-        n.score = 1
-        n.terminal = true
-    elseif is_tied(n.board)
-        n.score = 0
-        n.terminal = true
-    else
-        n.score = pos_score(n.board)
-        n.terminal = false
+    if is_tied(board) || length(moves) < 1
+        descend = false
+        α = 0
     end
-end
-
-
-function rescore!(node::Node)
-    if node.terminal
-        return
+    
+    if emminant_win(board, moves)
+        descend = false
+        α =  100 + depth
     end
-    node.score = -maximum([child.score for child in node.children]) - ϵ
-    node.terminal = abs(node.score) > 1 - 50ϵ
+
+    if depth < 1
+        descend = false
+        α = pos_score(board)
+    end
+
+    best_move = -1
+    if descend
+        scores = [pos_score(move(board, j)) for j in moves]
+        for i in sortperm(scores, rev=true)
+            j = moves[i]
+            s = -score(move(board, j), depth-1, -β, -α, boards)[1]
+            if s >= β
+                α = β
+                break
+            end
+            if s > α
+                α = s
+                best_move = j
+            end
+        end
+    end
+
+    push!(boards.nodes, k => α)
+    push!(boards.moves, k => best_move)
+
+    return α, best_move
 end
 
 
-function Base.show(io::IO, node::Node)
-    println(io, "move = ", node.last_move)
-    println(io, "score = ", node.score)
-    println(io, "children ", length(node.children))
-    println(io, "end ", node.terminal)
-end
+
 
 
 

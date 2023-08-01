@@ -48,7 +48,7 @@ function Base.setindex!(board::Gameboard, X::Int, i::Integer, j::Integer)
         board.board2 ⊻ 1<<idx
         board.board1 ⊻ 1<<idx
     else
-        throw(ValueError("value must be -1, 0, +1 for gameboard"))
+        throw(ArgumentError("value must be -1, 0, +1 for gameboard"))
     end
     print(board.board1)
     print(board.board2)
@@ -58,7 +58,7 @@ end
 
 function move!(board::Gameboard, j)
     if !(j in valid_moves(board))
-        throw(ValueError("not a valid move"))
+        throw(ArgumentError("not a valid move: $j"))
     end
 
     i = column_height(board, j) 
@@ -73,24 +73,18 @@ function move!(board::Gameboard, j)
     board.turn += 1
 end
 
+function Base.copy(board::Gameboard)
+    return Gameboard(board.turn, 
+                     board.board1, 
+                     board.board2,
+                     board.score)
+end
+
 
 function move(board::Gameboard, j)
-    if !(j in valid_moves(board))
-        throw(ValueError("not a valid move"))
-    end
-
-    i = column_height(board, j) 
-    idx = _tuple_to_idx(i, j)
-    board1 = board.board1
-    board2 = board.board2
-
-    if current_player(board) == 1
-        board1 |= 1 << idx
-    elseif current_player(board) == -1
-        board2 |= 1 << idx
-    end
-
-    return Gameboard(turn=board.turn + 1, board1=board1, board2=board2)
+    gb = copy(board)
+    move!(gb, j)
+    return gb
 end
 
 
@@ -118,12 +112,12 @@ end
 
 function is_won(board::Gameboard)
     if _is_won(board.board1)
-        return 1
+        return true
     elseif _is_won(board.board2)
-        return -1
+        return true
+    else
+        return false
     end
-
-    return 0
 end
 
 function is_tied(board::Gameboard)
@@ -189,7 +183,7 @@ function pos_score(board::Gameboard)
 
     count = _pos_score(board.board1, mask) - _pos_score(board.board2, mask)
 
-    return player * count / (N_COLS * N_ROWS)
+    return player * count 
 end
 
 
